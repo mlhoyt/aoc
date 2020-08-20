@@ -1,20 +1,26 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 )
 
 // IntCode represents stored program code with a program counter
 type IntCode struct {
-	code []int
-	pc   int
+	code     []int
+	inputSrc io.Reader
+	pc       int
 }
 
 // NewIntCode takes a stored program code and returns an IntCode object
-func NewIntCode(intcode []int) *IntCode {
+func NewIntCode(intcode []int, inputSrc io.Reader) *IntCode {
 	newIntCode := IntCode{
-		code: intcode,
-		pc:   0,
+		code:     intcode,
+		inputSrc: inputSrc,
+		pc:       0,
 	}
 
 	return &newIntCode
@@ -43,7 +49,7 @@ func (u *IntCode) step() (bool, error) {
 	case opcodeMultIndirect:
 		return u.opMultIndirect(), nil
 	case opcodeInput:
-		return u.opInput(), nil
+		return u.opInput()
 	case opcodeOutput:
 		return u.opOutput(), nil
 	case opcodeEnd:
@@ -91,12 +97,32 @@ func (u *IntCode) opMultIndirect() bool {
 	return true
 }
 
-func (u *IntCode) opInput() bool {
+func (u *IntCode) readInputSrc() (int, error) {
+	reader := bufio.NewReader(u.inputSrc)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return -1, err
+	}
+
+	v, err := strconv.Atoi(strings.TrimSpace(input))
+	if err != nil {
+		return -1, err
+	}
+
+	return v, nil
+}
+
+func (u *IntCode) opInput() (bool, error) {
 	u.pcIncr()
-	v := 13 // FIXME: need to read from stdin
+
+	v, err := u.readInputSrc()
+	if err != nil {
+		return false, err
+	}
+
 	u.putIndirect(v)
 
-	return true
+	return true, nil
 }
 
 func (u *IntCode) opOutput() bool {
