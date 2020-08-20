@@ -10,17 +10,19 @@ import (
 
 // IntCode represents stored program code with a program counter
 type IntCode struct {
-	code     []int
-	inputSrc io.Reader
-	pc       int
+	code      []int
+	inputSrc  io.Reader
+	outputSrc io.Writer
+	pc        int
 }
 
 // NewIntCode takes a stored program code and returns an IntCode object
-func NewIntCode(intcode []int, inputSrc io.Reader) *IntCode {
+func NewIntCode(intcode []int, inputSrc io.Reader, outputSrc io.Writer) *IntCode {
 	newIntCode := IntCode{
-		code:     intcode,
-		inputSrc: inputSrc,
-		pc:       0,
+		code:      intcode,
+		inputSrc:  inputSrc,
+		outputSrc: outputSrc,
+		pc:        0,
 	}
 
 	return &newIntCode
@@ -51,7 +53,7 @@ func (u *IntCode) step() (bool, error) {
 	case opcodeInput:
 		return u.opInput()
 	case opcodeOutput:
-		return u.opOutput(), nil
+		return u.opOutput()
 	case opcodeEnd:
 		return u.opEnd(), nil
 	default:
@@ -97,7 +99,7 @@ func (u *IntCode) opMultIndirect() bool {
 	return true
 }
 
-func (u *IntCode) readInputSrc() (int, error) {
+func (u *IntCode) readFromInputSrc() (int, error) {
 	reader := bufio.NewReader(u.inputSrc)
 	input, err := reader.ReadString('\n')
 	if err != nil {
@@ -115,7 +117,7 @@ func (u *IntCode) readInputSrc() (int, error) {
 func (u *IntCode) opInput() (bool, error) {
 	u.pcIncr()
 
-	v, err := u.readInputSrc()
+	v, err := u.readFromInputSrc()
 	if err != nil {
 		return false, err
 	}
@@ -125,12 +127,23 @@ func (u *IntCode) opInput() (bool, error) {
 	return true, nil
 }
 
-func (u *IntCode) opOutput() bool {
+func (u *IntCode) writeToOutputSrc(v int) error {
+	writer := bufio.NewWriter(u.outputSrc)
+	_, err := writer.WriteString(fmt.Sprintf("%d\n", v))
+
+	return err
+}
+
+func (u *IntCode) opOutput() (bool, error) {
 	u.pcIncr()
 	v := u.getIndirect()
-	fmt.Println(v)
 
-	return true
+	err := u.writeToOutputSrc(v)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (u *IntCode) opEnd() bool {
