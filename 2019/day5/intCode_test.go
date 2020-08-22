@@ -8,33 +8,89 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRunOpAddIndirect(t *testing.T) {
-	code := []int{1, 2, 3, 5, 99, 0}
-	expected := []int{1, 2, 3, 5, 99, 8}
-
-	intcode := NewIntCode(code, os.Stdin, os.Stdout)
-	err := intcode.Run()
-	if err != nil {
-		t.Error(err)
+func TestRunOpAdd(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     []int
+		expected []int
+	}{
+		{
+			name:     "add indirect indirect",
+			code:     []int{1, 2, 3, 5, 99, 0},
+			expected: []int{1, 2, 3, 5, 99, 8},
+		},
+		{
+			name:     "add direct indirect",
+			code:     []int{101, 3, 3, 5, 99, 0},
+			expected: []int{101, 3, 3, 5, 99, 8},
+		},
+		{
+			name:     "add indirect direct",
+			code:     []int{1001, 2, 3, 5, 99, 0},
+			expected: []int{1001, 2, 3, 5, 99, 6},
+		},
+		{
+			name:     "add direct direct",
+			code:     []int{1101, 2, 3, 5, 99, 0},
+			expected: []int{1101, 2, 3, 5, 99, 5},
+		},
 	}
 
-	assert.Equal(t, expected, intcode.Code())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			intcode := NewIntCode(tt.code, os.Stdin, os.Stdout)
+			err := intcode.Run()
+			if err != nil {
+				t.Error(err)
+			}
+
+			assert.Equal(t, tt.expected, intcode.Code())
+		})
+	}
 }
 
-func TestRunOpMultIndirect(t *testing.T) {
-	code := []int{2, 2, 3, 5, 99, 0}
-	expected := []int{2, 2, 3, 5, 99, 15}
-
-	intcode := NewIntCode(code, os.Stdin, os.Stdout)
-	err := intcode.Run()
-	if err != nil {
-		t.Error(err)
+func TestRunOpMult(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     []int
+		expected []int
+	}{
+		{
+			name:     "mult indirect indirect",
+			code:     []int{2, 2, 3, 5, 99, 0},
+			expected: []int{2, 2, 3, 5, 99, 15},
+		},
+		{
+			name:     "mult direct indirect",
+			code:     []int{102, 3, 3, 5, 99, 0},
+			expected: []int{102, 3, 3, 5, 99, 15},
+		},
+		{
+			name:     "mult indirect direct",
+			code:     []int{1002, 2, 3, 5, 99, 0},
+			expected: []int{1002, 2, 3, 5, 99, 9},
+		},
+		{
+			name:     "mult direct direct",
+			code:     []int{1102, 2, 3, 5, 99, 0},
+			expected: []int{1102, 2, 3, 5, 99, 6},
+		},
 	}
 
-	assert.Equal(t, expected, intcode.Code())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			intcode := NewIntCode(tt.code, os.Stdin, os.Stdout)
+			err := intcode.Run()
+			if err != nil {
+				t.Error(err)
+			}
+
+			assert.Equal(t, tt.expected, intcode.Code())
+		})
+	}
 }
 
-func TestRunOpAddIndirectMultIndirect(t *testing.T) {
+func TestRunOpAddIndirectIndirectMultIndirectIndirect(t *testing.T) {
 	code := []int{1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50}
 	expected := []int{3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50}
 
@@ -64,17 +120,63 @@ func TestRunOpInput(t *testing.T) {
 }
 
 func TestRunOpOutput(t *testing.T) {
-	code := []int{4, 3, 99, 13}
-	expected := []int{4, 3, 99, 13}
-
-	var stdout bytes.Buffer
-
-	intcode := NewIntCode(code, os.Stdin, &stdout)
-	err := intcode.Run()
-	if err != nil {
-		t.Error(err)
+	tests := []struct {
+		name     string
+		code     []int
+		expected []int
+	}{
+		{
+			name:     "output indirect",
+			code:     []int{4, 3, 99, 13},
+			expected: []int{4, 3, 99, 13},
+		},
+		{
+			name:     "output direct",
+			code:     []int{104, 13, 99, 0},
+			expected: []int{104, 13, 99, 0},
+		},
 	}
 
-	assert.Equal(t, expected, intcode.Code())
-	assert.Equal(t, []byte("13\n"), stdout.Bytes())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			intcode := NewIntCode(tt.code, os.Stdin, &stdout)
+			err := intcode.Run()
+			if err != nil {
+				t.Error(err)
+			}
+
+			assert.Equal(t, tt.expected, intcode.Code())
+			assert.Equal(t, []byte("13\n"), stdout.Bytes())
+		})
+	}
+}
+
+func TestRunMisc(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     []int
+		expected []int
+	}{
+		{
+			name:     "negative immediate value",
+			code:     []int{1101, 100, -1, 4, 0},
+			expected: []int{1101, 100, -1, 4, 99},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			intcode := NewIntCode(tt.code, os.Stdin, &stdout)
+			err := intcode.Run()
+			if err != nil {
+				t.Error(err)
+			}
+
+			assert.Equal(t, tt.expected, intcode.Code())
+		})
+	}
 }

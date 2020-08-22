@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// IntCode represents stored program code with a program counter
+// IntCode represents stored program code with an input source, an output source, and a program counter
 type IntCode struct {
 	code      []int
 	inputSrc  io.Reader
@@ -16,10 +16,10 @@ type IntCode struct {
 	pc        int
 }
 
-// NewIntCode takes a stored program code and returns an IntCode object
-func NewIntCode(intcode []int, inputSrc io.Reader, outputSrc io.Writer) *IntCode {
+// NewIntCode takes a stored program code, an input source, and an output source and returns an IntCode object
+func NewIntCode(code []int, inputSrc io.Reader, outputSrc io.Writer) *IntCode {
 	newIntCode := IntCode{
-		code:      intcode,
+		code:      code,
 		inputSrc:  inputSrc,
 		outputSrc: outputSrc,
 		pc:        0,
@@ -32,8 +32,7 @@ func NewIntCode(intcode []int, inputSrc io.Reader, outputSrc io.Writer) *IntCode
 func (u *IntCode) Run() error {
 	var err error
 
-	cont := true
-	for cont {
+	for cont := true; cont; {
 		cont, err = u.step()
 		if err != nil {
 			return err
@@ -45,32 +44,81 @@ func (u *IntCode) Run() error {
 
 // Step executes the next instruction
 func (u *IntCode) step() (bool, error) {
-	switch u.op() {
-	case opcodeAddIndirect:
-		return u.opAddIndirect(), nil
-	case opcodeMultIndirect:
-		return u.opMultIndirect(), nil
-	case opcodeInput:
-		return u.opInput()
-	case opcodeOutput:
-		return u.opOutput()
-	case opcodeEnd:
+	instr := u.nextInstruction()
+
+	switch instr.Op() {
+	case opCodeAdd:
+		return u.opAdd(instr.ArgAddrModes()), nil
+	case opCodeMult:
+		return u.opMult(instr.ArgAddrModes()), nil
+	case opCodeInput:
+		return u.opInput(instr.ArgAddrModes())
+	case opCodeOutput:
+		return u.opOutput(instr.ArgAddrModes())
+	case opCodeEnd:
 		return u.opEnd(), nil
 	default:
-		return false, fmt.Errorf("unexpected opcode: %d", u.code[u.pc])
+		return false, fmt.Errorf("unexpected opCode: %d", u.code[u.pc])
 	}
 }
 
-func (u *IntCode) op() opcode {
-	return NewOpcode(u.code[u.pc])
+type instruction struct {
+	op           opCode
+	argAddrModes []opArgAddrMode
+}
+
+func (u *instruction) Op() opCode {
+	return u.op
+}
+
+func (u *instruction) ArgAddrModes() []opArgAddrMode {
+	return u.argAddrModes
+}
+
+func newInstruction(op int) instruction {
+	instrOp := NewOpCode(op % 100)
+	op = op / 100
+
+	instrArgAddrModes := []opArgAddrMode{}
+	for op > 0 {
+		instrArgAddrModes = append(instrArgAddrModes, NewOpArgAddrMode(op%10))
+		op = op / 10
+	}
+
+	return instruction{
+		op:           instrOp,
+		argAddrModes: instrArgAddrModes,
+	}
+}
+
+func (u *IntCode) nextInstruction() instruction {
+	return newInstruction(u.code[u.pc])
 }
 
 func (u *IntCode) pcIncr() {
 	u.pc++
 }
 
+func (u *IntCode) get(mode opArgAddrMode) int {
+	switch mode {
+	case opArgAddrModeIndirect:
+		return u.getIndirect()
+	case opArgAddrModeImmediate:
+		return u.getImmediate()
+	}
+
+	return -1 // this really should be unreachable and error
+}
+
 func (u *IntCode) getIndirect() int {
 	v := u.code[u.code[u.pc]]
+	u.pcIncr()
+
+	return v
+}
+
+func (u *IntCode) getImmediate() int {
+	v := u.code[u.pc]
 	u.pcIncr()
 
 	return v
@@ -81,19 +129,23 @@ func (u *IntCode) putIndirect(v int) {
 	u.pcIncr()
 }
 
-func (u *IntCode) opAddIndirect() bool {
+func (u *IntCode) opAdd(argAddrModes []opArgAddrMode) bool {
+	safeArgAddrModes := fillArgAddrModes(argAddrModes, 3)
 	u.pcIncr()
-	arg1 := u.getIndirect()
-	arg2 := u.getIndirect()
+
+	arg1 := u.get(safeArgAddrModes[0])
+	arg2 := u.get(safeArgAddrModes[1])
 	u.putIndirect(arg1 + arg2)
 
 	return true
 }
 
-func (u *IntCode) opMultIndirect() bool {
+func (u *IntCode) opMult(argAddrModes []opArgAddrMode) bool {
+	safeArgAddrModes := fillArgAddrModes(argAddrModes, 3)
 	u.pcIncr()
-	arg1 := u.getIndirect()
-	arg2 := u.getIndirect()
+
+	arg1 := u.get(safeArgAddrModes[0])
+	arg2 := u.get(safeArgAddrModes[1])
 	u.putIndirect(arg1 * arg2)
 
 	return true
@@ -114,7 +166,7 @@ func (u *IntCode) readFromInputSrc() (int, error) {
 	return v, nil
 }
 
-func (u *IntCode) opInput() (bool, error) {
+func (u *IntCode) opInput(argAddrModes []opArgAddrMode) (bool, error) {
 	u.pcIncr()
 
 	v, err := u.readFromInputSrc()
@@ -131,9 +183,11 @@ func (u *IntCode) writeToOutputSrc(v int) {
 	fmt.Fprintf(u.outputSrc, "%d\n", v)
 }
 
-func (u *IntCode) opOutput() (bool, error) {
+func (u *IntCode) opOutput(argAddrModes []opArgAddrMode) (bool, error) {
+	safeArgAddrModes := fillArgAddrModes(argAddrModes, 1)
 	u.pcIncr()
-	v := u.getIndirect()
+
+	v := u.get(safeArgAddrModes[0])
 
 	u.writeToOutputSrc(v)
 
@@ -151,32 +205,58 @@ func (u *IntCode) Code() []int {
 	return u.code
 }
 
-type opcode int
+type opCode int
 
 const (
-	opcodeUnknown      opcode = 0
-	opcodeAddIndirect         = 1
-	opcodeMultIndirect        = 2
-	opcodeInput               = 3
-	opcodeOutput              = 4
-	opcodeEnd                 = 99
+	opCodeUnknown opCode = 0
+	opCodeAdd            = 1
+	opCodeMult           = 2
+	opCodeInput          = 3
+	opCodeOutput         = 4
+	opCodeEnd            = 99
 )
 
-var opcodeEnumMap = map[int]opcode{
-	1:  opcodeAddIndirect,
-	2:  opcodeMultIndirect,
-	3:  opcodeInput,
-	4:  opcodeOutput,
-	99: opcodeEnd,
+var opCodeEnumMap = map[int]opCode{
+	1:  opCodeAdd,
+	2:  opCodeMult,
+	3:  opCodeInput,
+	4:  opCodeOutput,
+	99: opCodeEnd,
 }
 
-func NewOpcode(n int) opcode {
-	if v, ok := opcodeEnumMap[n]; ok {
+func NewOpCode(n int) opCode {
+	if v, ok := opCodeEnumMap[n]; ok {
 		return v
 	}
 
-	return opcodeUnknown
+	return opCodeUnknown
 }
 
-// Opcode 3 takes a single integer as input and saves it to the position given by its only parameter. For example, the instruction 3,50 would take an input value and store it at address 50.
-// Opcode 4 outputs the value of its only parameter. For example, the instruction 4,50 would output the value at address 50.
+type opArgAddrMode int
+
+const (
+	opArgAddrModeUnknown   opArgAddrMode = -1
+	opArgAddrModeIndirect                = 0
+	opArgAddrModeImmediate               = 1
+)
+
+var opArgAddrModeEnumMap = map[int]opArgAddrMode{
+	0: opArgAddrModeIndirect,
+	1: opArgAddrModeImmediate,
+}
+
+func NewOpArgAddrMode(n int) opArgAddrMode {
+	if v, ok := opArgAddrModeEnumMap[n]; ok {
+		return v
+	}
+
+	return opArgAddrModeUnknown
+}
+
+func fillArgAddrModes(argAddrModes []opArgAddrMode, size int) []opArgAddrMode {
+	for len(argAddrModes) < size {
+		argAddrModes = append(argAddrModes, opArgAddrModeIndirect)
+	}
+
+	return argAddrModes
+}
