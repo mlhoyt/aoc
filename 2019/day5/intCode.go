@@ -127,21 +127,15 @@ func (u *IntCode) opInput() (bool, error) {
 	return true, nil
 }
 
-func (u *IntCode) writeToOutputSrc(v int) error {
-	writer := bufio.NewWriter(u.outputSrc)
-	_, err := writer.WriteString(fmt.Sprintf("%d\n", v))
-
-	return err
+func (u *IntCode) writeToOutputSrc(v int) {
+	fmt.Fprintf(u.outputSrc, "%d\n", v)
 }
 
 func (u *IntCode) opOutput() (bool, error) {
 	u.pcIncr()
 	v := u.getIndirect()
 
-	err := u.writeToOutputSrc(v)
-	if err != nil {
-		return false, err
-	}
+	u.writeToOutputSrc(v)
 
 	return true, nil
 }
