@@ -55,6 +55,14 @@ func (u *IntCode) step() (bool, error) {
 		return u.opInput(instr.ArgAddrModes())
 	case opCodeOutput:
 		return u.opOutput(instr.ArgAddrModes())
+	case opCodeJumpIfTrue:
+		return u.opJumpIfTrue(instr.ArgAddrModes()), nil
+	case opCodeJumpIfFalse:
+		return u.opJumpIfFalse(instr.ArgAddrModes()), nil
+	case opCodeLessThan:
+		return u.opLessThan(instr.ArgAddrModes()), nil
+	case opCodeEqual:
+		return u.opEqual(instr.ArgAddrModes()), nil
 	case opCodeEnd:
 		return u.opEnd(), nil
 	default:
@@ -97,6 +105,10 @@ func (u *IntCode) nextInstruction() instruction {
 
 func (u *IntCode) pcIncr() {
 	u.pc++
+}
+
+func (u *IntCode) pcSet(v int) {
+	u.pc = v
 }
 
 func (u *IntCode) get(mode opArgAddrMode) int {
@@ -194,6 +206,66 @@ func (u *IntCode) opOutput(argAddrModes []opArgAddrMode) (bool, error) {
 	return true, nil
 }
 
+func (u *IntCode) opJumpIfTrue(argAddrModes []opArgAddrMode) bool {
+	safeArgAddrModes := fillArgAddrModes(argAddrModes, 2)
+	u.pcIncr()
+
+	arg1 := u.get(safeArgAddrModes[0])
+	arg2 := u.get(safeArgAddrModes[1])
+
+	if arg1 != 0 {
+		u.pcSet(arg2)
+	}
+
+	return true
+}
+
+func (u *IntCode) opJumpIfFalse(argAddrModes []opArgAddrMode) bool {
+	safeArgAddrModes := fillArgAddrModes(argAddrModes, 2)
+	u.pcIncr()
+
+	arg1 := u.get(safeArgAddrModes[0])
+	arg2 := u.get(safeArgAddrModes[1])
+
+	if arg1 == 0 {
+		u.pcSet(arg2)
+	}
+
+	return true
+}
+
+func (u *IntCode) opLessThan(argAddrModes []opArgAddrMode) bool {
+	safeArgAddrModes := fillArgAddrModes(argAddrModes, 3)
+	u.pcIncr()
+
+	arg1 := u.get(safeArgAddrModes[0])
+	arg2 := u.get(safeArgAddrModes[1])
+
+	v := 0
+	if arg1 < arg2 {
+		v = 1
+	}
+	u.putIndirect(v)
+
+	return true
+}
+
+func (u *IntCode) opEqual(argAddrModes []opArgAddrMode) bool {
+	safeArgAddrModes := fillArgAddrModes(argAddrModes, 3)
+	u.pcIncr()
+
+	arg1 := u.get(safeArgAddrModes[0])
+	arg2 := u.get(safeArgAddrModes[1])
+
+	v := 0
+	if arg1 == arg2 {
+		v = 1
+	}
+	u.putIndirect(v)
+
+	return true
+}
+
 func (u *IntCode) opEnd() bool {
 	u.pcIncr()
 
@@ -208,12 +280,16 @@ func (u *IntCode) Code() []int {
 type opCode int
 
 const (
-	opCodeUnknown opCode = 0
-	opCodeAdd            = 1
-	opCodeMult           = 2
-	opCodeInput          = 3
-	opCodeOutput         = 4
-	opCodeEnd            = 99
+	opCodeUnknown     opCode = 0
+	opCodeAdd                = 1
+	opCodeMult               = 2
+	opCodeInput              = 3
+	opCodeOutput             = 4
+	opCodeJumpIfTrue         = 5
+	opCodeJumpIfFalse        = 6
+	opCodeLessThan           = 7
+	opCodeEqual              = 8
+	opCodeEnd                = 99
 )
 
 var opCodeEnumMap = map[int]opCode{
@@ -221,6 +297,10 @@ var opCodeEnumMap = map[int]opCode{
 	2:  opCodeMult,
 	3:  opCodeInput,
 	4:  opCodeOutput,
+	5:  opCodeJumpIfTrue,
+	6:  opCodeJumpIfFalse,
+	7:  opCodeLessThan,
+	8:  opCodeEqual,
 	99: opCodeEnd,
 }
 
