@@ -118,3 +118,22 @@ func (u *universalOrbitMap) CheckSum() int {
 
 	return checkSum
 }
+
+func (u *universalOrbitMap) GetOrbiteeList(orbiter string) *orbiteeList {
+	// FIXME
+	return &orbiteeList{}
+}
+
+func (u *universalOrbitMap) GetOrbitalDistance(orbiter string, orbitee string) (int, error) {
+	// FIXME
+	return 0, nil
+}
+
+type orbiteeList struct {
+	data []string
+}
+
+func (u *orbiteeList) CalculateDivergencePoint(v *orbiteeList) string {
+	// FIXME
+	return "COM"
+}
