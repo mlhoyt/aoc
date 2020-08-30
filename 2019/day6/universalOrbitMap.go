@@ -125,7 +125,6 @@ func (u *universalOrbitMap) GetOrbiteeList(orbiter string) *orbiteeList {
 	for item := orbiter; item != "COM"; item, _ = u.orbitData[item] {
 		items.Add(item)
 	}
-	items.Add("COM")
 
 	fmt.Printf("[DEBUG]: universalOrbitMap::GetOrbiteeList: items=%+v\n", items)
 
@@ -137,24 +136,32 @@ type orbiteeList struct {
 }
 
 func (u *orbiteeList) Add(orbitee string) {
-	u.data = append([]string{orbitee}, u.data...)
+	u.data = append(u.data, orbitee)
 }
 
-func (u *orbiteeList) CalculateDivergencePoint(v *orbiteeList) int {
-	commonOrbiteeIndex := 0
-
-	for i := 1; i < len(u.data) && u.data[i] == v.data[i]; i++ {
-		commonOrbiteeIndex = i
+func (u *orbiteeList) GetIndexByName(orbitee string) int {
+	for i, v := range u.data {
+		if v == orbitee {
+			return i
+		}
 	}
 
-	commonOrbitee := u.data[commonOrbiteeIndex]
-	fmt.Printf("[DEBUG]: orbiteeList::CalculateDivergencePoint: index=%d last-common-orbitee=%s len(a)=%d len(b)=%d\n", commonOrbiteeIndex, commonOrbitee, len(u.data), len(v.data))
-
-	return commonOrbiteeIndex
+	return -1
 }
 
-func (u *orbiteeList) CalculateOrbitalDistance(orbiteeIndex int) int {
-	orbitalDistance := len(u.data) - orbiteeIndex - 1
-	fmt.Printf("[DEBUG]: orbiteeList::CalculateOrbitalDistance: distance=%d\n", orbitalDistance)
-	return orbitalDistance
+func (u *orbiteeList) CalculateOrbitalDistance(v *orbiteeList) int {
+	minOrbitalDistance := len(u.data) + len(v.data)
+
+	for i := range u.data {
+		if vi := v.GetIndexByName(u.data[i]); vi > 0 {
+			orbitalDistance := i + vi - 2
+			// fmt.Printf("[DEBUG]: orbiteeList::CalculateDivergencePoint: commonOrbitee=%s i=%d vi=%d orbitalDistance=%d\n", u.data[i], i, vi, orbitalDistance)
+
+			if orbitalDistance < minOrbitalDistance {
+				minOrbitalDistance = orbitalDistance
+			}
+		}
+	}
+
+	return minOrbitalDistance
 }
