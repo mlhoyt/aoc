@@ -14,11 +14,6 @@ func main() {
 
 	youOrbits := uom.GetOrbiteeList("YOU")
 	sanOrbits := uom.GetOrbiteeList("SAN")
-	commonOrbiteeIndex := youOrbits.CalculateDivergencePoint(sanOrbits)
-
-	youOrbitalDistance := youOrbits.CalculateOrbitalDistance(commonOrbiteeIndex)
-	sanOrbitalDistance := sanOrbits.CalculateOrbitalDistance(commonOrbiteeIndex)
-
-	orbitalTransfers := youOrbitalDistance + sanOrbitalDistance
-	fmt.Printf("orbital-transfers %d\n", orbitalTransfers)
+	orbitalDistance := youOrbits.CalculateOrbitalDistance(sanOrbits)
+	fmt.Printf("orbitalDistance: %d\n", orbitalDistance)
 }
