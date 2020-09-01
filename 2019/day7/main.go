@@ -15,10 +15,7 @@ func main() {
 	maxOutputSignal := 0
 
 	for _, ampSetting := range generateAmpSettings() {
-		ampCode := make([]int, len(codeData))
-		copy(ampCode, codeData)
-
-		outputSignal, err := simulateAmpChain(ampCode, ampSetting)
+		outputSignal, err := simulateAmpChain(codeData, ampSetting)
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			os.Exit(1)
@@ -36,17 +33,50 @@ func main() {
 func simulateAmpChain(ampCode []int, ampSetting []int) (int, error) {
 	fmt.Printf("[DEBUG] ampSetting=%v\n", ampSetting)
 
-	inputSignal := 0
-	for _, inputSetting := range ampSetting {
-		outputSignal, err := simulateAmp(ampCode, inputSetting, inputSignal)
-		if err != nil {
-			return -1, err
-		}
+	n := len(ampSetting)
 
-		inputSignal = outputSignal
+	wires := make([]*bytes.Buffer, n)
+	for i, v := range ampSetting {
+		wire := bytes.NewBufferString(fmt.Sprintf("%d\n", v))
+		wires[i] = wire
 	}
 
-	return inputSignal, nil
+	doneFlag := make(chan string)
+
+	for i := range ampSetting {
+		ip1 := (i + 1) % n
+
+		ampInstanceCode := make([]int, len(ampCode))
+		copy(ampInstanceCode, ampCode)
+
+		go func(nr int, code []int, input *bytes.Buffer, output *bytes.Buffer) {
+			err := intcode.NewIntCode(code, input, output).Run()
+			if err != nil {
+				fmt.Printf("[ERROR] simulateAmpChain: amp=%d: failed running intcode program: error=%v\n", nr, err)
+			}
+
+			// If the last amp then indicate when done
+			if ip1 == 0 {
+				doneFlag <- "done"
+			}
+		}(i, ampInstanceCode, wires[i], wires[ip1])
+	}
+
+	_, err := (wires[0]).WriteString("0\n")
+	if err != nil {
+		return -1, fmt.Errorf("[ERROR] simulateAmpChain: failed to initialize input stream: %v", err)
+	}
+
+	// FIXME: How do we know when the chain is done?
+	_ = <-doneFlag
+
+	outputStr := wires[0].String()
+	outputSignal, err := strconv.Atoi(strings.TrimSpace(outputStr))
+	if err != nil {
+		return -1, fmt.Errorf("[ERROR] simulateAmpChain: failed to convert output string to int: output=%s %v", outputStr, err)
+	}
+
+	return outputSignal, nil
 }
 
 func simulateAmp(code []int, setting int, signal int) (int, error) {
@@ -75,19 +105,18 @@ func simulateAmp(code []int, setting int, signal int) (int, error) {
 	return outputSignal, nil
 }
 
-const nMax = 5
+const nMin = 5
+const nMax = 10
 
 func generateAmpSettings() [][]int {
 	// length = 1
-	settings := [][]int{[]int{0}, []int{1}, []int{2}, []int{3}, []int{4}}
-	newSettings := [][]int{}
-	for _, setting := range settings {
-		newSettings = append(newSettings, buildAmpSettings(setting)...)
+	settings := [][]int{}
+	for i := nMin; i < nMax; i++ {
+		settings = append(settings, []int{i})
 	}
 
 	// length = 2
-	settings = newSettings
-	newSettings = [][]int{}
+	newSettings := [][]int{}
 	for _, setting := range settings {
 		newSettings = append(newSettings, buildAmpSettings(setting)...)
 	}
@@ -106,13 +135,20 @@ func generateAmpSettings() [][]int {
 		newSettings = append(newSettings, buildAmpSettings(setting)...)
 	}
 
+	// length = 5
+	settings = newSettings
+	newSettings = [][]int{}
+	for _, setting := range settings {
+		newSettings = append(newSettings, buildAmpSettings(setting)...)
+	}
+
 	return newSettings
 }
 
 func buildAmpSettings(suffix []int) [][]int {
 	settings := [][]int{}
 
-	for i := 0; i < nMax; i++ {
+	for i := nMin; i < nMax; i++ {
 		if !intSliceContains(suffix, i) {
 			settings = append(settings, append([]int{i}, suffix...))
 		}
