@@ -4,16 +4,18 @@ import (
 	"fmt"
 )
 
+type IOSrc chan int
+
 // IntCode represents stored program code with an input source, an output source, and a program counter
 type IntCode struct {
 	code      []int
-	inputSrc  chan int
-	outputSrc chan int
+	inputSrc  IOSrc
+	outputSrc IOSrc
 	pc        int
 }
 
 // NewIntCode takes a stored program code, an input source, and an output source and returns an IntCode object
-func NewIntCode(code []int, inputSrc chan int, outputSrc chan int) *IntCode {
+func NewIntCode(code []int, inputSrc IOSrc, outputSrc IOSrc) *IntCode {
 	newIntCode := IntCode{
 		code:      code,
 		inputSrc:  inputSrc,

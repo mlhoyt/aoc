@@ -36,8 +36,8 @@ func TestRunOpAdd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := make(chan int)
-			output := make(chan int)
+			input := make(IOSrc)
+			output := make(IOSrc)
 
 			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
@@ -80,8 +80,8 @@ func TestRunOpMult(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := make(chan int)
-			output := make(chan int)
+			input := make(IOSrc)
+			output := make(IOSrc)
 
 			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
@@ -98,8 +98,8 @@ func TestRunOpAddIndirectIndirectMultIndirectIndirect(t *testing.T) {
 	code := []int{1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50}
 	expected := []int{3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50}
 
-	input := make(chan int)
-	output := make(chan int)
+	input := make(IOSrc)
+	output := make(IOSrc)
 
 	intcode := NewIntCode(code, input, output)
 	err := intcode.Run()
@@ -133,8 +133,8 @@ func TestRunOpInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := make(chan int, 10)
-			output := make(chan int, 10)
+			input := make(IOSrc, 10)
+			output := make(IOSrc, 10)
 
 			for _, v := range tt.input {
 				input <- v
@@ -170,8 +170,8 @@ func TestRunOpOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := make(chan int, 10)
-			output := make(chan int, 10)
+			input := make(IOSrc, 10)
+			output := make(IOSrc, 10)
 
 			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
@@ -326,8 +326,8 @@ func TestRunMisc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := make(chan int, 10)
-			output := make(chan int, 10)
+			input := make(IOSrc, 10)
+			output := make(IOSrc, 10)
 
 			for _, v := range tt.input {
 				input <- v
