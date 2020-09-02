@@ -1,8 +1,6 @@
 package intcode
 
 import (
-	"bytes"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +36,10 @@ func TestRunOpAdd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			intcode := NewIntCode(tt.code, os.Stdin, os.Stdout)
+			input := make(chan int)
+			output := make(chan int)
+
+			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
 			if err != nil {
 				t.Error(err)
@@ -79,7 +80,10 @@ func TestRunOpMult(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			intcode := NewIntCode(tt.code, os.Stdin, os.Stdout)
+			input := make(chan int)
+			output := make(chan int)
+
+			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
 			if err != nil {
 				t.Error(err)
@@ -94,7 +98,10 @@ func TestRunOpAddIndirectIndirectMultIndirectIndirect(t *testing.T) {
 	code := []int{1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50}
 	expected := []int{3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50}
 
-	intcode := NewIntCode(code, os.Stdin, os.Stdout)
+	input := make(chan int)
+	output := make(chan int)
+
+	intcode := NewIntCode(code, input, output)
 	err := intcode.Run()
 	if err != nil {
 		t.Error(err)
@@ -107,29 +114,32 @@ func TestRunOpInput(t *testing.T) {
 	tests := []struct {
 		name     string
 		code     []int
-		input    []byte
+		input    []int
 		expected []int
 	}{
 		{
 			name:     "single read indirect",
 			code:     []int{3, 1, 99},
-			input:    []byte("13\n"),
+			input:    []int{13},
 			expected: []int{3, 13, 99},
 		},
 		{
 			name:     "multiple read indirect",
 			code:     []int{3, 1, 3, 3, 99},
-			input:    []byte("13\n31\n"),
+			input:    []int{13, 31},
 			expected: []int{3, 13, 3, 31, 99},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var stdin bytes.Buffer
-			stdin.Write(tt.input)
+			input := make(chan int, 10)
+			output := make(chan int, 10)
 
-			intcode := NewIntCode(tt.code, &stdin, os.Stdout)
+			for _, v := range tt.input {
+				input <- v
+			}
+			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
 			if err != nil {
 				t.Error(err)
@@ -160,16 +170,17 @@ func TestRunOpOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var stdout bytes.Buffer
+			input := make(chan int, 10)
+			output := make(chan int, 10)
 
-			intcode := NewIntCode(tt.code, os.Stdin, &stdout)
+			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
 			if err != nil {
 				t.Error(err)
 			}
 
 			assert.Equal(t, tt.expected, intcode.Code())
-			assert.Equal(t, []byte("13\n"), stdout.Bytes())
+			assert.Equal(t, 13, <-output)
 		})
 	}
 }
@@ -180,147 +191,148 @@ func TestRunMisc(t *testing.T) {
 		code          []int
 		expected      []int
 		checkExpected bool
-		stdin         []byte
-		stdout        []byte
+		input         []int
+		output        []int
 	}{
 		{
 			name:          "negative immediate value",
 			code:          []int{1101, 100, -1, 4, 0},
 			expected:      []int{1101, 100, -1, 4, 99},
 			checkExpected: true,
-			stdin:         []byte(""),
-			stdout:        nil,
+			input:         []int{},
+			output:        []int{},
 		},
 		{
 			name:          "is input equal to 8, indirect, true",
 			code:          []int{3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8},
 			expected:      []int{3, 9, 8, 9, 10, 9, 4, 9, 99, 1, 8},
 			checkExpected: true,
-			stdin:         []byte("8\n"),
-			stdout:        []byte("1\n"),
+			input:         []int{8},
+			output:        []int{1},
 		},
 		{
 			name:          "is input equal to 8, indirect, false",
 			code:          []int{3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8},
 			expected:      []int{3, 9, 8, 9, 10, 9, 4, 9, 99, 0, 8},
 			checkExpected: true,
-			stdin:         []byte("7\n"),
-			stdout:        []byte("0\n"),
+			input:         []int{7},
+			output:        []int{0},
 		},
 		{
 			name:          "is input equal to 8, immediate, true",
 			code:          []int{3, 3, 1108, -1, 8, 3, 4, 3, 99},
 			expected:      []int{3, 3, 1108, 1, 8, 3, 4, 3, 99},
 			checkExpected: true,
-			stdin:         []byte("8\n"),
-			stdout:        []byte("1\n"),
+			input:         []int{8},
+			output:        []int{1},
 		},
 		{
 			name:          "is input equal to 8, immediate, false",
 			code:          []int{3, 3, 1108, -1, 8, 3, 4, 3, 99},
 			expected:      []int{3, 3, 1108, 0, 8, 3, 4, 3, 99},
 			checkExpected: true,
-			stdin:         []byte("7\n"),
-			stdout:        []byte("0\n"),
+			input:         []int{7},
+			output:        []int{0},
 		},
 		{
 			name:          "is input less than 8, indirect, true",
 			code:          []int{3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8},
 			expected:      []int{3, 9, 7, 9, 10, 9, 4, 9, 99, 1, 8},
 			checkExpected: true,
-			stdin:         []byte("7\n"),
-			stdout:        []byte("1\n"),
+			input:         []int{7},
+			output:        []int{1},
 		},
 		{
 			name:          "is input less than 8, indirect, false",
 			code:          []int{3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8},
 			expected:      []int{3, 9, 7, 9, 10, 9, 4, 9, 99, 0, 8},
 			checkExpected: true,
-			stdin:         []byte("8\n"),
-			stdout:        []byte("0\n"),
+			input:         []int{8},
+			output:        []int{0},
 		},
 		{
 			name:          "is input less than 8, immediate, true",
 			code:          []int{3, 3, 1107, -1, 8, 3, 4, 3, 99},
 			expected:      []int{3, 3, 1107, 1, 8, 3, 4, 3, 99},
 			checkExpected: true,
-			stdin:         []byte("7\n"),
-			stdout:        []byte("1\n"),
+			input:         []int{7},
+			output:        []int{1},
 		},
 		{
 			name:          "is input less than 8, immediate, false",
 			code:          []int{3, 3, 1107, -1, 8, 3, 4, 3, 99},
 			expected:      []int{3, 3, 1107, 0, 8, 3, 4, 3, 99},
 			checkExpected: true,
-			stdin:         []byte("8\n"),
-			stdout:        []byte("0\n"),
+			input:         []int{8},
+			output:        []int{0},
 		},
 		{
 			name:          "is input equal to 0, indirect, true",
 			code:          []int{3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9},
 			expected:      []int{},
 			checkExpected: false,
-			stdin:         []byte("0\n"),
-			stdout:        []byte("0\n"),
+			input:         []int{0},
+			output:        []int{0},
 		},
 		{
 			name:          "is input equal to 0, indirect, false",
 			code:          []int{3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9},
 			expected:      []int{},
 			checkExpected: false,
-			stdin:         []byte("1\n"),
-			stdout:        []byte("1\n"),
+			input:         []int{1},
+			output:        []int{1},
 		},
 		{
 			name:          "is input equal to 0, immediate, true",
 			code:          []int{3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1},
 			expected:      []int{},
 			checkExpected: false,
-			stdin:         []byte("0\n"),
-			stdout:        []byte("0\n"),
+			input:         []int{0},
+			output:        []int{0},
 		},
 		{
 			name:          "is input equal to 0, immediate, false",
 			code:          []int{3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1},
 			expected:      []int{},
 			checkExpected: false,
-			stdin:         []byte("1\n"),
-			stdout:        []byte("1\n"),
+			input:         []int{1},
+			output:        []int{1},
 		},
 		{
 			name:          "input relative to 8, below",
 			code:          []int{3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99},
 			expected:      []int{},
 			checkExpected: false,
-			stdin:         []byte("7\n"),
-			stdout:        []byte("999\n"),
+			input:         []int{7},
+			output:        []int{999},
 		},
 		{
 			name:          "input relative to 8, equal",
 			code:          []int{3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99},
 			expected:      []int{},
 			checkExpected: false,
-			stdin:         []byte("8\n"),
-			stdout:        []byte("1000\n"),
+			input:         []int{8},
+			output:        []int{1000},
 		},
 		{
 			name:          "input relative to 8, above",
 			code:          []int{3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99},
 			expected:      []int{},
 			checkExpected: false,
-			stdin:         []byte("9\n"),
-			stdout:        []byte("1001\n"),
+			input:         []int{9},
+			output:        []int{1001},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var stdin bytes.Buffer
-			var stdout bytes.Buffer
+			input := make(chan int, 10)
+			output := make(chan int, 10)
 
-			stdin.Write(tt.stdin)
-
-			intcode := NewIntCode(tt.code, &stdin, &stdout)
+			for _, v := range tt.input {
+				input <- v
+			}
+			intcode := NewIntCode(tt.code, input, output)
 			err := intcode.Run()
 			if err != nil {
 				t.Error(err)
@@ -329,7 +341,10 @@ func TestRunMisc(t *testing.T) {
 			if tt.checkExpected {
 				assert.Equal(t, tt.expected, intcode.Code())
 			}
-			assert.Equal(t, tt.stdout, stdout.Bytes())
+
+			for _, v := range tt.output {
+				assert.Equal(t, v, <-output)
+			}
 		})
 	}
 }

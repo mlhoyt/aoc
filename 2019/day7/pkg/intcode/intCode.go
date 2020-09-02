@@ -1,26 +1,22 @@
 package intcode
 
 import (
-	"bufio"
 	"fmt"
-	"io"
-	"strconv"
-	"strings"
 )
 
 // IntCode represents stored program code with an input source, an output source, and a program counter
 type IntCode struct {
 	code      []int
-	inputSrc  *bufio.Reader
-	outputSrc io.Writer
+	inputSrc  chan int
+	outputSrc chan int
 	pc        int
 }
 
 // NewIntCode takes a stored program code, an input source, and an output source and returns an IntCode object
-func NewIntCode(code []int, inputSrc io.Reader, outputSrc io.Writer) *IntCode {
+func NewIntCode(code []int, inputSrc chan int, outputSrc chan int) *IntCode {
 	newIntCode := IntCode{
 		code:      code,
-		inputSrc:  bufio.NewReader(inputSrc),
+		inputSrc:  inputSrc,
 		outputSrc: outputSrc,
 		pc:        0,
 	}
@@ -164,17 +160,9 @@ func (u *IntCode) opMult(argAddrModes []opArgAddrMode) bool {
 }
 
 func (u *IntCode) readFromInputSrc() (int, error) {
-	input, err := u.inputSrc.ReadString('\n')
-	if err != nil {
-		return -1, err
-	}
+	input := <-u.inputSrc
 
-	v, err := strconv.Atoi(strings.TrimSpace(input))
-	if err != nil {
-		return -1, err
-	}
-
-	return v, nil
+	return input, nil
 }
 
 func (u *IntCode) opInput(argAddrModes []opArgAddrMode) (bool, error) {
@@ -191,7 +179,7 @@ func (u *IntCode) opInput(argAddrModes []opArgAddrMode) (bool, error) {
 }
 
 func (u *IntCode) writeToOutputSrc(v int) {
-	fmt.Fprintf(u.outputSrc, "%d\n", v)
+	u.outputSrc <- v
 }
 
 func (u *IntCode) opOutput(argAddrModes []opArgAddrMode) (bool, error) {
