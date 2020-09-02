@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/mlhoyt/adventofcode.com-2019/day7/pkg/intcode"
 	"os"
-	"strconv"
-	"strings"
 )
 
 var codeData = []int{3, 8, 1001, 8, 10, 8, 105, 1, 0, 0, 21, 46, 67, 88, 101, 126, 207, 288, 369, 450, 99999, 3, 9, 1001, 9, 5, 9, 1002, 9, 5, 9, 1001, 9, 5, 9, 102, 3, 9, 9, 101, 2, 9, 9, 4, 9, 99, 3, 9, 102, 4, 9, 9, 101, 5, 9, 9, 102, 5, 9, 9, 101, 3, 9, 9, 4, 9, 99, 3, 9, 1001, 9, 3, 9, 102, 2, 9, 9, 1001, 9, 5, 9, 102, 4, 9, 9, 4, 9, 99, 3, 9, 102, 3, 9, 9, 1001, 9, 4, 9, 4, 9, 99, 3, 9, 102, 3, 9, 9, 1001, 9, 3, 9, 1002, 9, 2, 9, 101, 4, 9, 9, 102, 3, 9, 9, 4, 9, 99, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 99, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 99, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 99, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 1001, 9, 1, 9, 4, 9, 3, 9, 101, 2, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 99, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 101, 1, 9, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 1002, 9, 2, 9, 4, 9, 3, 9, 1001, 9, 2, 9, 4, 9, 3, 9, 102, 2, 9, 9, 4, 9, 99}
@@ -35,9 +32,11 @@ func simulateAmpChain(ampCode []int, ampSetting []int) (int, error) {
 
 	n := len(ampSetting)
 
-	wires := make([]*bytes.Buffer, n)
+	wires := make([]intcode.IOSrc, n)
 	for i, v := range ampSetting {
-		wire := bytes.NewBufferString(fmt.Sprintf("%d\n", v))
+		wire := make(intcode.IOSrc, 2)
+		wire <- v
+
 		wires[i] = wire
 	}
 
@@ -49,7 +48,7 @@ func simulateAmpChain(ampCode []int, ampSetting []int) (int, error) {
 		ampInstanceCode := make([]int, len(ampCode))
 		copy(ampInstanceCode, ampCode)
 
-		go func(nr int, code []int, input *bytes.Buffer, output *bytes.Buffer) {
+		go func(nr int, code []int, input intcode.IOSrc, output intcode.IOSrc) {
 			err := intcode.NewIntCode(code, input, output).Run()
 			if err != nil {
 				fmt.Printf("[ERROR] simulateAmpChain: amp=%d: failed running intcode program: error=%v\n", nr, err)
@@ -62,48 +61,45 @@ func simulateAmpChain(ampCode []int, ampSetting []int) (int, error) {
 		}(i, ampInstanceCode, wires[i], wires[ip1])
 	}
 
-	_, err := (wires[0]).WriteString("0\n")
-	if err != nil {
-		return -1, fmt.Errorf("[ERROR] simulateAmpChain: failed to initialize input stream: %v", err)
-	}
+	wires[0] <- 0
 
 	// FIXME: How do we know when the chain is done?
 	_ = <-doneFlag
 
-	outputStr := wires[0].String()
-	outputSignal, err := strconv.Atoi(strings.TrimSpace(outputStr))
-	if err != nil {
-		return -1, fmt.Errorf("[ERROR] simulateAmpChain: failed to convert output string to int: output=%s %v", outputStr, err)
+	var outputSignal int
+	select {
+	case outputSignal = <-wires[0]:
+	default:
 	}
 
 	return outputSignal, nil
 }
 
-func simulateAmp(code []int, setting int, signal int) (int, error) {
-	var input bytes.Buffer
-	_, err := input.WriteString(fmt.Sprintf("%d\n%d\n", setting, signal))
-	if err != nil {
-		return -1, fmt.Errorf("[ERROR] simulateAmp: failed to initialize input stream: %v", err)
-	}
+// func simulateAmp(code []int, setting int, signal int) (int, error) {
+// 	var input bytes.Buffer
+// 	_, err := input.WriteString(fmt.Sprintf("%d\n%d\n", setting, signal))
+// 	if err != nil {
+// 		return -1, fmt.Errorf("[ERROR] simulateAmp: failed to initialize input stream: %v", err)
+// 	}
 
-	var output bytes.Buffer
+// 	var output bytes.Buffer
 
-	intcode := intcode.NewIntCode(code, &input, &output)
-	err = intcode.Run()
-	if err != nil {
-		return -1, fmt.Errorf("[ERROR] simulateAmp: failed running intcode program: setting=%d signal=%d error=%v", setting, signal, err)
-	}
+// 	intcode := intcode.NewIntCode(code, &input, &output)
+// 	err = intcode.Run()
+// 	if err != nil {
+// 		return -1, fmt.Errorf("[ERROR] simulateAmp: failed running intcode program: setting=%d signal=%d error=%v", setting, signal, err)
+// 	}
 
-	outputStr := output.String()
-	outputSignal, err := strconv.Atoi(strings.TrimSpace(outputStr))
-	if err != nil {
-		return -1, fmt.Errorf("[ERROR] simulateAmp: failed to convert output string to int: output=%s %v", outputStr, err)
-	}
+// 	outputStr := output.String()
+// 	outputSignal, err := strconv.Atoi(strings.TrimSpace(outputStr))
+// 	if err != nil {
+// 		return -1, fmt.Errorf("[ERROR] simulateAmp: failed to convert output string to int: output=%s %v", outputStr, err)
+// 	}
 
-	fmt.Printf("[DEBUG] simulateAmp: setting=%d signal=%d output=%d\n", setting, signal, outputSignal)
+// 	fmt.Printf("[DEBUG] simulateAmp: setting=%d signal=%d output=%d\n", setting, signal, outputSignal)
 
-	return outputSignal, nil
-}
+// 	return outputSignal, nil
+// }
 
 const nMin = 5
 const nMax = 10
