@@ -32,4 +32,6 @@ func main() {
 	}
 
 	fmt.Printf("image checkSum: %v\n", image.CheckSum())
+
+	fmt.Printf("image rendered:\n%s\n", image.Render())
 }
