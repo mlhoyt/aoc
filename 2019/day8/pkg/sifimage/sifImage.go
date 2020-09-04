@@ -52,3 +52,12 @@ func (u *sifImage) CheckSum() int {
 
 	return u.layers[checkSumLayerNr].valueCount(1) * u.layers[checkSumLayerNr].valueCount(2)
 }
+
+func (u *sifImage) Render() string {
+	rendered := u.layers[0]
+	for i := 1; i < len(u.layers); i++ {
+		rendered = rendered.merge(u.layers[i])
+	}
+
+	return rendered.String()
+}

@@ -1,7 +1,9 @@
 package sifimage
 
 import (
+	"bytes"
 	"fmt"
+	"strconv"
 )
 
 var errInvalidImageLayerDataLength = fmt.Errorf("invalid image layer data length; must be an even multiple of width times height")
@@ -51,4 +53,41 @@ func (u *sifImageLayer) valueCount(v int) int {
 	}
 
 	return count
+}
+
+func (u *sifImageLayer) merge(v *sifImageLayer) *sifImageLayer {
+	merged := &sifImageLayer{
+		data: [][]int{},
+	}
+
+	for rowIndex := range u.data {
+		mergedRow := []int{}
+		for columnIndex := range u.data[rowIndex] {
+			mergedRow = append(mergedRow, mergeValues(u.data[rowIndex][columnIndex], v.data[rowIndex][columnIndex]))
+		}
+		merged.data = append(merged.data, mergedRow)
+	}
+
+	return merged
+}
+
+func mergeValues(v1 int, v2 int) int {
+	if v1 == 2 {
+		return v2
+	}
+
+	return v1
+}
+
+func (u *sifImageLayer) String() string {
+	buf := &bytes.Buffer{}
+
+	for _, row := range u.data {
+		for _, rcv := range row {
+			buf.WriteString(strconv.Itoa(rcv))
+		}
+		buf.WriteString("\n")
+	}
+
+	return buf.String()
 }
