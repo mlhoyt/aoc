@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/mlhoyt/advent-of-code/2019/go/pkg/intcode"
-	"os"
-	"path/filepath"
+	"github.com/mlhoyt/advent-of-code/2019/go/pkg/utils"
 	"strconv"
 )
 
 func main() {
-	input, err := load_file("input/day02.txt")
+	input, err := utils.LoadInputFile("day02.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -43,31 +41,6 @@ func main() {
 	}
 
 	fmt.Println("no noun/verb match found")
-}
-
-func load_file(name string) ([]string, error) {
-	absName, err := filepath.Abs(name)
-	if err != nil {
-		return nil, err
-	}
-
-	ifh, err := os.Open(absName)
-	if err != nil {
-		return nil, err
-	}
-	defer ifh.Close()
-
-	lines := []string{}
-	scanner := bufio.NewScanner(ifh)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return lines, nil
 }
 
 func newCode(data []string) ([]int, error) {

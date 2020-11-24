@@ -1,17 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"github.com/mlhoyt/advent-of-code/2019/go/pkg/utils"
 	"github.com/mlhoyt/advent-of-code/2019/go/pkg/wireanalyzer"
 	"math"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
 func main() {
-	input, err := load_file("input/day03.txt")
+	input, err := utils.LoadInputFile("day03.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -26,31 +24,6 @@ func main() {
 
 	dist := nearestWireIntersection(wires[0], wires[1])
 	fmt.Printf("%d\n", dist)
-}
-
-func load_file(name string) ([]string, error) {
-	absName, err := filepath.Abs(name)
-	if err != nil {
-		return nil, err
-	}
-
-	ifh, err := os.Open(absName)
-	if err != nil {
-		return nil, err
-	}
-	defer ifh.Close()
-
-	lines := []string{}
-	scanner := bufio.NewScanner(ifh)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return lines, nil
 }
 
 func newWires(data []string) ([]wireanalyzer.Wire, error) {

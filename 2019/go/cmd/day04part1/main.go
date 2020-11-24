@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"path/filepath"
+	"github.com/mlhoyt/advent-of-code/2019/go/pkg/utils"
 	"strconv"
 	"strings"
 )
 
 func main() {
-	input, err := load_file("input/day04.txt")
+	input, err := utils.LoadInputFile("day04.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -23,31 +21,6 @@ func main() {
 	nrValidPasswords := calculateValidPasswordsInRange(min, max)
 
 	fmt.Printf("%d\n", nrValidPasswords)
-}
-
-func load_file(name string) ([]string, error) {
-	absName, err := filepath.Abs(name)
-	if err != nil {
-		return nil, err
-	}
-
-	ifh, err := os.Open(absName)
-	if err != nil {
-		return nil, err
-	}
-	defer ifh.Close()
-
-	lines := []string{}
-	scanner := bufio.NewScanner(ifh)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return lines, nil
 }
 
 func newBounds(data []string) (int, int, error) {
