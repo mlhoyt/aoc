@@ -27,7 +27,7 @@ func main() {
 			testCode[1] = noun
 			testCode[2] = verb
 
-			computer := intcode.NewIntCode(testCode)
+			computer := intcode.NewIntCode(testCode, nil, nil)
 
 			if err := computer.Run(); err != nil {
 				continue

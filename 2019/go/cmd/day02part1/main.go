@@ -22,7 +22,7 @@ func main() {
 	code[1] = 12
 	code[2] = 2
 
-	computer := intcode.NewIntCode(code)
+	computer := intcode.NewIntCode(code, nil, nil)
 
 	if err := computer.Run(); err != nil {
 		panic(err)
