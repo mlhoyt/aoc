@@ -1,0 +1,4 @@
+[[language]]
+name = "haskell"
+formatter = { command = "fourmolu", args = ["--stdin-input-file", "Main.hs"] }
+auto-format = true
